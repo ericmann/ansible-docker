@@ -1,0 +1,34 @@
+---
+- name: Install dependencies
+  apt: name={{item}} state=latest update_cache=yes
+  with_items:
+    - curl
+
+- name: Check if Docker is installed
+  command: dpkg-query -l docker-engine
+  register: docker_installed
+  failed_when: docker_installed.rc > 1
+  changed_when: no
+
+- name: Install Docker
+  shell: curl -sSL https://get.docker.com/ | sh
+  when: docker_installed.rc != 0
+
+- name: Install/Update Docker package
+  apt:
+    name: "docker-engine"
+    state: present
+    update_cache: yes
+    cache_valid_time: 300
+
+- name: Add users to docker group
+  command: usermod -aG docker {{item}}
+  with_items: "{{ docker_users }}"
+  when: docker_users|length > 0
+
+- name: Ensure docker is running
+  service:
+    name: docker
+    enabled: yes
+    state: started
+  become: yes
